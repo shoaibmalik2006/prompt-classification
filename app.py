@@ -20,6 +20,11 @@ st.set_page_config(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 
+# Debug: Check if directory exists
+if not os.path.exists(MODEL_DIR):
+    st.error(f"❌ Models directory not found: {MODEL_DIR}")
+    st.stop()
+
 # -------------------------------------------------
 # SESSION STATE INITIALIZATION
 # -------------------------------------------------
@@ -29,6 +34,8 @@ if 'total_scans' not in st.session_state:
     st.session_state.total_scans = 0
 if 'threats_detected' not in st.session_state:
     st.session_state.threats_detected = 0
+if 'models_loaded' not in st.session_state:
+    st.session_state.models_loaded = False
 
 # -------------------------------------------------
 # ENHANCED CSS
@@ -352,6 +359,16 @@ def load_css():
         }
     }
     
+    /* Error/Warning Boxes */
+    .error-box {
+        background: rgba(255, 255, 255, 0.95);
+        border-left: 5px solid #ff6a00;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
     /* Sidebar Styling */
     .css-1d391kg, [data-testid="stSidebar"] {
         background: rgba(255, 255, 255, 0.95) !important;
@@ -364,17 +381,49 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# LOAD MODELS
+# LOAD MODELS WITH ERROR HANDLING
 # -------------------------------------------------
 @st.cache_resource
 def load_models():
-    human_ai_model = pickle.load(open(os.path.join(MODEL_DIR, "human_ai_model.pkl"), "rb"))
-    human_ai_vectorizer = pickle.load(open(os.path.join(MODEL_DIR, "human_ai_vectorizer.pkl"), "rb"))
-    malicious_model = pickle.load(open(os.path.join(MODEL_DIR, "malicious_model.pkl"), "rb"))
-    malicious_vectorizer = pickle.load(open(os.path.join(MODEL_DIR, "malicious_vectorizer.pkl"), "rb"))
-    return human_ai_model, human_ai_vectorizer, malicious_model, malicious_vectorizer
+    try:
+        model_files = {
+            "human_ai_model.pkl": None,
+            "human_ai_vectorizer.pkl": None,
+            "malicious_model.pkl": None,
+            "malicious_vectorizer.pkl": None
+        }
+        
+        # Check if all files exist
+        for filename in model_files.keys():
+            filepath = os.path.join(MODEL_DIR, filename)
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"Model file not found: {filename}")
+        
+        # Load models
+        human_ai_model_path = os.path.join(MODEL_DIR, "human_ai_model.pkl")
+        human_ai_vectorizer_path = os.path.join(MODEL_DIR, "human_ai_vectorizer.pkl")
+        malicious_model_path = os.path.join(MODEL_DIR, "malicious_model.pkl")
+        malicious_vectorizer_path = os.path.join(MODEL_DIR, "malicious_vectorizer.pkl")
+        
+        with open(human_ai_model_path, "rb") as f:
+            human_ai_model = pickle.load(f)
+        
+        with open(human_ai_vectorizer_path, "rb") as f:
+            human_ai_vectorizer = pickle.load(f)
+        
+        with open(malicious_model_path, "rb") as f:
+            malicious_model = pickle.load(f)
+        
+        with open(malicious_vectorizer_path, "rb") as f:
+            malicious_vectorizer = pickle.load(f)
+        
+        return human_ai_model, human_ai_vectorizer, malicious_model, malicious_vectorizer, None
+        
+    except Exception as e:
+        return None, None, None, None, str(e)
 
-human_ai_model, human_ai_vectorizer, malicious_model, malicious_vectorizer = load_models()
+# Load models
+human_ai_model, human_ai_vectorizer, malicious_model, malicious_vectorizer, error = load_models()
 
 # -------------------------------------------------
 # CLASSIFICATION FUNCTION
@@ -408,6 +457,56 @@ def classify_text(text):
 # UI
 # -------------------------------------------------
 load_css()
+
+# Check for model loading errors
+if error:
+    st.markdown("""
+    <div class="hero-section">
+        <div class="hero-title">🛡️ AI SECURITY VIP</div>
+        <div class="hero-subtitle">Model Loading Error</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.error("❌ **Failed to load models**")
+    
+    st.markdown(f"""
+    <div class="error-box">
+        <h3>🔍 Troubleshooting Information:</h3>
+        <p><strong>Error Details:</strong> {error}</p>
+        <p><strong>Expected Directory:</strong> {MODEL_DIR}</p>
+        <p><strong>Required Files:</strong></p>
+        <ul>
+            <li>human_ai_model.pkl</li>
+            <li>human_ai_vectorizer.pkl</li>
+            <li>malicious_model.pkl</li>
+            <li>malicious_vectorizer.pkl</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Show existing files
+    if os.path.exists(MODEL_DIR):
+        files = os.listdir(MODEL_DIR)
+        st.info(f"📁 **Files found in models directory:** {', '.join(files) if files else 'None'}")
+    
+    st.markdown("""
+    ### 🔧 **Solutions:**
+    1. **Verify model files exist** in the `models/` directory
+    2. **Re-train and save models** using the same Python version
+    3. **Check file permissions** and ensure files are not corrupted
+    4. **Use absolute paths** if relative paths aren't working
+    5. **Regenerate pickle files** with compatible pickle protocol
+    
+    ### 💡 **Quick Fix:**
+    ```python
+    # Save models with compatibility
+    import pickle
+    with open('model.pkl', 'wb') as f:
+        pickle.dump(model, f, protocol=4)  # Use protocol 4 for compatibility
+    ```
+    """)
+    
+    st.stop()
 
 # Hero Section
 st.markdown("""
@@ -563,7 +662,7 @@ with st.sidebar:
 st.markdown("""
 <div class="footer">
     <div class="footer-text">
-        ⚡ Built with passion by <span class="footer-highlight">Shoaib</span> 🚀
+        ⚡ Built with passion by <span class="footer-highlight">Shoaib Malik</span> 🚀
     </div>
     <div class="footer-text" style="margin-top: 0.5rem;">
         Semester-3 AI Security Project | Powered by Machine Learning
