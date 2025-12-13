@@ -8,7 +8,7 @@ from datetime import datetime
 # STREAMLIT CONFIG
 # -------------------------------------------------
 st.set_page_config(
-    page_title="AI Security VIP",
+    page_title="AI Security Project",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
