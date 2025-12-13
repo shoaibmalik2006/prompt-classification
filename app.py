@@ -462,7 +462,7 @@ load_css()
 if error:
     st.markdown("""
     <div class="hero-section">
-        <div class="hero-title">🛡️ AI SECURITY VIP</div>
+        <div class="hero-title">🛡️ AI SECURITY PROJECT</div>
         <div class="hero-subtitle">Model Loading Error</div>
     </div>
     """, unsafe_allow_html=True)
