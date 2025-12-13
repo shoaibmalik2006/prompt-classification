@@ -511,7 +511,7 @@ if error:
 # Hero Section
 st.markdown("""
 <div class="hero-section">
-    <div class="hero-title">🛡️ AI SECURITY VIP</div>
+    <div class="hero-title">🛡️ AI SECURITY PROJECT</div>
     <div class="hero-subtitle">Human vs AI & Malicious Prompt Detection</div>
     <div class="hero-description">
         Enterprise-grade security system powered by advanced machine learning algorithms.
