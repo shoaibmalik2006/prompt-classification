@@ -776,3 +776,181 @@ with tab2:
                     results.append({
                         'text': text[:50] + '...',
                         'ai': result['ai_result'],
+                        'ai_conf': result['ai_confidence'],
+                        'mal': result['malicious_result'],
+                        'mal_conf': result['mal_confidence']
+                    })
+                    progress.progress((i + 1) / len(texts))
+                    st.session_state.total_scans += 1
+                    if result['malicious_result'] == "Malicious":
+                        st.session_state.threats_detected += 1
+                
+                progress.empty()
+                st.success(f"✅ Analyzed {len(texts)} texts successfully!")
+                
+                # Display results in a table
+                st.markdown("### 📋 Batch Results")
+                for idx, res in enumerate(results, 1):
+                    with st.expander(f"Text {idx}: {res['text']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown(f"**AI Detection:** {res['ai']}")
+                            st.progress(res['ai_conf'] / 100)
+                            st.caption(f"Confidence: {res['ai_conf']:.2f}%")
+                        with col2:
+                            st.markdown(f"**Threat Analysis:** {res['mal']}")
+                            st.progress(res['mal_conf'] / 100)
+                            st.caption(f"Confidence: {res['mal_conf']:.2f}%")
+            else:
+                st.warning("⚠️ No valid texts found. Please separate texts with '---'")
+        else:
+            st.warning("⚠️ Please enter some text to analyze")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab3:
+    st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">💡 Examples & Information</div>', unsafe_allow_html=True)
+    
+    st.markdown("### 📚 Try These Examples")
+    st.markdown("Click on any example to analyze it:")
+    
+    for title, text in EXAMPLE_TEXTS.items():
+        if st.button(f"📄 {title}", key=f"example_{title}", use_container_width=True):
+            st.session_state.example_text = text
+            st.rerun()
+    
+    if hasattr(st.session_state, 'example_text'):
+        st.markdown("---")
+        st.markdown("### Selected Example:")
+        st.text_area("Example Text", st.session_state.example_text, height=150, key="example_display")
+        
+        if st.button("🛡️ Analyze This Example", use_container_width=True):
+            result = classify_text(st.session_state.example_text)
+            
+            st.session_state.total_scans += 1
+            if result['malicious_result'] == "Malicious":
+                st.session_state.threats_detected += 1
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"""
+                <div class="result-card">
+                    <div class="result-icon">{"🤖" if result['ai_result'] == "AI-Generated" else "👤"}</div>
+                    <div class="result-title">AI Detection</div>
+                    <div class="result-value">{result['ai_result']}</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: {result['ai_confidence']}%;"></div>
+                    </div>
+                    <p style="margin-top: 1rem;">Confidence: {result['ai_confidence']:.2f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                card_class = "result-card safe" if result['malicious_result'] == "Safe" else "result-card malicious"
+                st.markdown(f"""
+                <div class="{card_class}">
+                    <div class="result-icon">{"✅" if result['malicious_result'] == "Safe" else "🚨"}</div>
+                    <div class="result-title">Threat Analysis</div>
+                    <div class="result-value">{result['malicious_result']}</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: {result['mal_confidence']}%;"></div>
+                    </div>
+                    <p style="margin-top: 1rem;">Confidence: {result['mal_confidence']:.2f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("### 📖 How It Works")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        #### 🤖 AI Detection
+        Our system uses advanced machine learning models to distinguish between:
+        - **AI-Generated Text**: Content created by language models
+        - **Human-Written Text**: Content written by real people
+        
+        The model analyzes patterns, vocabulary, and structure to make predictions.
+        """)
+    
+    with col2:
+        st.markdown("""
+        #### 🛡️ Threat Detection
+        The malicious content detector identifies:
+        - **Phishing Attempts**: Suspicious links and requests
+        - **Spam Content**: Unsolicited promotional messages
+        - **Social Engineering**: Manipulation tactics
+        - **Harmful Instructions**: Dangerous or unethical content
+        """)
+    
+    st.markdown("---")
+    st.markdown("### 🎯 Best Practices")
+    st.info("""
+    **Tips for Accurate Analysis:**
+    - Provide at least 50 characters for better accuracy
+    - Include complete sentences when possible
+    - Context matters - longer texts yield better results
+    - The model works best with English text
+    - Confidence scores above 80% are highly reliable
+    """)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Enhanced Sidebar with Visualizations
+with st.sidebar:
+    st.markdown('<div class="section-title">📜 Recent Scans</div>', unsafe_allow_html=True)
+    
+    if len(st.session_state.history) == 0:
+        st.info("No scans yet. Start analyzing text to see history.")
+    else:
+        # Show history chart
+        chart = create_history_chart()
+        if chart:
+            st.plotly_chart(chart, use_container_width=True)
+        
+        st.markdown("---")
+        
+        for idx, item in enumerate(st.session_state.history):
+            ai_badge = "badge-ai" if item['ai_result'] == "AI-Generated" else "badge-human"
+            mal_badge = "badge-safe" if item['mal_result'] == "Safe" else "badge-malicious"
+            
+            st.markdown(f"""
+            <div class="history-item">
+                <div style="font-size: 0.8rem; color: #999; margin-bottom: 0.5rem;">
+                    🕐 {item['time']}
+                </div>
+                <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
+                    {item['text']}
+                </div>
+                <div>
+                    <span class="badge {ai_badge}">{item['ai_result']}</span>
+                    <span class="badge {mal_badge}">{item['mal_result']}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🗑️ Clear History", use_container_width=True):
+            st.session_state.history = []
+            st.rerun()
+    with col2:
+        if st.button("🔄 Reset Stats", use_container_width=True):
+            st.session_state.total_scans = 0
+            st.session_state.threats_detected = 0
+            st.rerun()
+
+# Footer
+st.markdown("""
+<div class="footer">
+    <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
+        ⚡ Built with passion by Shoaib Malik 🚀
+    </p>
+    <p style="color: #666;">
+        Semester-3 AI Security Project | Powered by Machine Learning
+    </p>
+</div>
+""", unsafe_allow_html=True)
