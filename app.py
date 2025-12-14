@@ -3,8 +3,6 @@ import pickle
 import os
 import time
 from datetime import datetime
-import plotly.graph_objects as go
-import plotly.express as px
 
 # -------------------------------------------------
 # STREAMLIT CONFIG
@@ -493,34 +491,27 @@ def classify_text(text):
     }
 
 # -------------------------------------------------
-# VISUALIZATION FUNCTIONS
+# VISUALIZATION FUNCTIONS (Using Native HTML/CSS)
 # -------------------------------------------------
-def create_confidence_gauge(confidence, title):
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number+delta",
-        value = confidence,
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': title, 'font': {'size': 24}},
-        delta = {'reference': 50},
-        gauge = {
-            'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-            'bar': {'color': "darkblue"},
-            'bgcolor': "white",
-            'borderwidth': 2,
-            'bordercolor': "gray",
-            'steps': [
-                {'range': [0, 50], 'color': '#ffcccb'},
-                {'range': [50, 75], 'color': '#ffffcc'},
-                {'range': [75, 100], 'color': '#ccffcc'}],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': 90}}))
-    
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
-    return fig
+def create_confidence_gauge_html(confidence, title, color="#667eea"):
+    return f"""
+    <div style="text-align: center; padding: 1rem;">
+        <h3 style="color: #333; margin-bottom: 1rem;">{title}</h3>
+        <div style="position: relative; width: 200px; height: 200px; margin: 0 auto;">
+            <svg viewBox="0 0 200 200" style="transform: rotate(-90deg);">
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#e0e0e0" stroke-width="20"/>
+                <circle cx="100" cy="100" r="80" fill="none" stroke="{color}" stroke-width="20"
+                        stroke-dasharray="{confidence * 5.02} 502" 
+                        style="transition: stroke-dasharray 1s ease-out;"/>
+            </svg>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; font-weight: bold; color: {color};">
+                {confidence:.1f}%
+            </div>
+        </div>
+    </div>
+    """
 
-def create_history_chart():
+def create_history_chart_html():
     if len(st.session_state.history) == 0:
         return None
     
@@ -531,30 +522,51 @@ def create_history_chart():
         ai_counts[item['ai_result']] += 1
         mal_counts[item['mal_result']] += 1
     
-    fig = go.Figure()
+    max_count = max(max(ai_counts.values()), max(mal_counts.values()))
     
-    fig.add_trace(go.Bar(
-        name='AI Detection',
-        x=list(ai_counts.keys()),
-        y=list(ai_counts.values()),
-        marker_color=['#667eea', '#f5576c']
-    ))
-    
-    fig.add_trace(go.Bar(
-        name='Threat Analysis',
-        x=list(mal_counts.keys()),
-        y=list(mal_counts.values()),
-        marker_color=['#38ef7d', '#eb3349']
-    ))
-    
-    fig.update_layout(
-        title="Analysis Distribution",
-        barmode='group',
-        height=300,
-        margin=dict(l=20, r=20, t=50, b=20)
-    )
-    
-    return fig
+    return f"""
+    <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+        <h3 style="text-align: center; color: #333; margin-bottom: 1rem;">Analysis Distribution</h3>
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="color: #666; font-size: 0.9rem;">AI Detection</h4>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                <span style="width: 120px; font-size: 0.85rem;">AI-Generated:</span>
+                <div style="flex: 1; background: #e0e0e0; border-radius: 5px; height: 25px; overflow: hidden;">
+                    <div style="width: {(ai_counts['AI-Generated']/max_count*100) if max_count > 0 else 0}%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; transition: width 1s ease-out; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
+                        {ai_counts['AI-Generated']}
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span style="width: 120px; font-size: 0.85rem;">Human-Written:</span>
+                <div style="flex: 1; background: #e0e0e0; border-radius: 5px; height: 25px; overflow: hidden;">
+                    <div style="width: {(ai_counts['Human-Generated']/max_count*100) if max_count > 0 else 0}%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); height: 100%; transition: width 1s ease-out; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
+                        {ai_counts['Human-Generated']}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <h4 style="color: #666; font-size: 0.9rem;">Threat Analysis</h4>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                <span style="width: 120px; font-size: 0.85rem;">Safe:</span>
+                <div style="flex: 1; background: #e0e0e0; border-radius: 5px; height: 25px; overflow: hidden;">
+                    <div style="width: {(mal_counts['Safe']/max_count*100) if max_count > 0 else 0}%; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); height: 100%; transition: width 1s ease-out; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
+                        {mal_counts['Safe']}
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span style="width: 120px; font-size: 0.85rem;">Malicious:</span>
+                <div style="flex: 1; background: #e0e0e0; border-radius: 5px; height: 25px; overflow: hidden;">
+                    <div style="width: {(mal_counts['Malicious']/max_count*100) if max_count > 0 else 0}%; background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); height: 100%; transition: width 1s ease-out; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold;">
+                        {mal_counts['Malicious']}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """
 
 # -------------------------------------------------
 # EXAMPLE TEXTS
@@ -716,7 +728,7 @@ with tab1:
                 """, unsafe_allow_html=True)
                 
                 if show_details:
-                    st.plotly_chart(create_confidence_gauge(result['ai_confidence'], "AI Detection Confidence"), use_container_width=True)
+                    st.markdown(create_confidence_gauge_html(result['ai_confidence'], "AI Detection Confidence", "#667eea"), unsafe_allow_html=True)
             
             with col2:
                 card_class = "result-card safe" if result['malicious_result'] == "Safe" else "result-card malicious"
@@ -734,7 +746,8 @@ with tab1:
                 """, unsafe_allow_html=True)
                 
                 if show_details:
-                    st.plotly_chart(create_confidence_gauge(result['mal_confidence'], "Threat Detection Confidence"), use_container_width=True)
+                    gauge_color = "#38ef7d" if result['malicious_result'] == "Safe" else "#eb3349"
+                    st.markdown(create_confidence_gauge_html(result['mal_confidence'], "Threat Detection Confidence", gauge_color), unsafe_allow_html=True)
             
             # Additional Insights
             if show_details:
@@ -905,9 +918,9 @@ with st.sidebar:
         st.info("No scans yet. Start analyzing text to see history.")
     else:
         # Show history chart
-        chart = create_history_chart()
-        if chart:
-            st.plotly_chart(chart, use_container_width=True)
+        chart_html = create_history_chart_html()
+        if chart_html:
+            st.markdown(chart_html, unsafe_allow_html=True)
         
         st.markdown("---")
         
